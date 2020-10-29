@@ -1,7 +1,7 @@
-# This is just a roughly instruction for controlling the brightness of the wordclock in HomeAssitant.
-# For more details you can have a look in my full configuration: https://github.com/kaibs/HomeAssistant-Config
+# This is just a rough instruction for controlling the brightness of the wordclock in HomeAssitant.
+# For more details you can have a look on my full configuration: https://github.com/kaibs/HomeAssistant-Config
 #
-# Also remind that this is just on way for implementing this in HA, there might be better possibilities
+# Also remind that this is just one way for implementing this in HA, there might be better possibilities
 
 
 # dimmer on the frontend in ui-lovelace.yaml:
@@ -16,6 +16,8 @@
     type: custom:slider-entity-row
   title: Wordclock
   type: entities
+
+# REMARK: this uses the custom lovelace-sliders found here: https://github.com/thomasloven/lovelace-slider-entity-row
 
 # configuration of input_number in configuration.yaml:
 input_number:
