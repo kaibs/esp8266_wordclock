@@ -1,0 +1,39 @@
+# This is just a roughly instruction for controlling the brightness of the wordclock in HomeAssitant.
+# For more details you can have a look in my full configuration: https://github.com/kaibs/HomeAssistant-Config
+#
+# Also remind that this is just on way for implementing this in HA, there might be better possibilities
+
+
+# dimmer on the frontend in ui-lovelace.yaml:
+- entities:
+  - entity: input_number.brightness_wordclock
+    name: Helligkeit
+    icon: mdi:brightness-6
+    initial: 20
+    min: 0
+    max: 255
+    step: 1
+    type: custom:slider-entity-row
+  title: Wordclock
+  type: entities
+
+# configuration of input_number in configuration.yaml:
+input_number:
+  brightness_wordclock:
+    initial: 20
+    min: 0
+    max: 255
+    step: 1
+
+# automation for using input_number to publish MQTT in automations.yaml:
+- id: "change_brightness_wordclock"
+  alias: 'publish brightness wordclock'
+  trigger:
+    - platform: state
+      entity_id: input_number.brightness_wordclock
+  action:
+    - service: mqtt.publish
+      data_template:
+        topic: home/livingroom/wordclock/brightness
+        payload: '{{ trigger.to_state.state }}'
+
