@@ -1,4 +1,4 @@
-## arduino_wordclock
+## esp8266_wordclock
 
 this repo contains code for a [QLOCKTWO](https://qlocktwo.com/de/)-style clock with a German layout based on an ESP8266 (NodeMCU).
 
