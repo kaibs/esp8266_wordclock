@@ -1,19 +1,20 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#define FASTLED_ESP8266_RAW_PIN_ORDER
+#define FASTLED_ESP8266_RAW_PIN_ORDER //necessary for FastLED on ESPs
 #include <FastLED.h>
 #include <Wire.h>
 #include <Time.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 
-
 boolean ledValues[110];
+boolean ledStates[110];
 boolean leo = false;
 boolean kai = false;
 int oldminute = 0;
 
+//LED settings
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
 #define PIN_1 14
@@ -50,7 +51,7 @@ String receivedString;
 int MQTT_brightness = 255;
 int old_brightness = 255;
 
-//ntp 
+//ntp - time synchronization
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
@@ -71,10 +72,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
  if (strcmp(topic,"home/livingroom/wordclock/brightness")==0){
  
- for (int i=0;i<length;i++) {
-  receivedString += (char)payload[i];
- }
-  
+  for (int i=0;i<length;i++) {
+   receivedString += (char)payload[i];
+  }
   MQTT_brightness = receivedString.toInt();
   receivedString = "";
  }
@@ -132,229 +132,206 @@ void setTime(){
 
 
 //---determine LED status-----//
-boolean setLED(int i) {
+void setLED() {
 
   //reset old status
   for (int i = 0; i < 110; i++) {
-    ledValues[i] = false;
+    ledStates[i] = false;
   }
-
 
   //-----structural elements-----//
 
   //UHR
-  if ((timeMin < 5))
-  {
-    ledValues[107] = true;
-    ledValues[108] = true;
-    ledValues[109] = true;
+  if ((timeMin < 5)){
+    ledStates[107] = true;
+    ledStates[108] = true;
+    ledStates[109] = true;
   }
 
   //VOR
-  if ((timeMin > 24) && (timeMin < 30) || (timeMin > 49))
-  {
-    ledValues[33] = true;
-    ledValues[34] = true;
-    ledValues[35] = true;
+  if ((timeMin > 24) && (timeMin < 30) || (timeMin > 49)){
+    ledStates[33] = true;
+    ledStates[34] = true;
+    ledStates[35] = true;
   }
 
   //NACH
-  if ((timeMin > 4) && (timeMin < 25) || (timeMin > 34) && (timeMin < 45))
-  {
-    ledValues[40] = true;
-    ledValues[41] = true;
-    ledValues[42] = true;
-    ledValues[43] = true;
+  if ((timeMin > 4) && (timeMin < 25) || (timeMin > 34) && (timeMin < 45)){
+    ledStates[40] = true;
+    ledStates[41] = true;
+    ledStates[42] = true;
+    ledStates[43] = true;
   }
 
   //-----numbers-----//
 
   //EINS
-  if (((timeMin < 25) && (timeHour == 1) || (timeMin > 24) && (timeHour == 0) || (timeMin > 24) && (timeHour == 12)) && !ledValues[107])
-  {
-    ledValues[55] = true;
-    ledValues[56] = true;
-    ledValues[57] = true;
-    ledValues[58] = true;
+  if (((timeMin < 25) && (timeHour == 1) || (timeMin > 24) && (timeHour == 0) || (timeMin > 24) && (timeHour == 12)) && !ledStates[107]){
+    ledStates[55] = true;
+    ledStates[56] = true;
+    ledStates[57] = true;
+    ledStates[58] = true;
   }
 
   //EIN
-  if ((timeHour == 1) && ledValues[107]) {
-    ledValues[55] = true;
-    ledValues[56] = true;
-    ledValues[57] = true;
+  if ((timeHour == 1) && ledStates[107]){
+    ledStates[55] = true;
+    ledStates[56] = true;
+    ledStates[57] = true;
   }
 
   //ZWEI
-  if ((timeMin < 25) && (timeHour == 2) || (timeMin > 24) && (timeHour == 1))
-  {
-    ledValues[62] = true;
-    ledValues[63] = true;
-    ledValues[64] = true;
-    ledValues[65] = true;
+  if ((timeMin < 25) && (timeHour == 2) || (timeMin > 24) && (timeHour == 1)){
+    ledStates[62] = true;
+    ledStates[63] = true;
+    ledStates[64] = true;
+    ledStates[65] = true;
   }
 
   //DREI
-  if ((timeMin < 25) && (timeHour == 3) || (timeMin > 24) && (timeHour == 2))
-  {
-    ledValues[73] = true;
-    ledValues[74] = true;
-    ledValues[75] = true;
-    ledValues[76] = true;
+  if ((timeMin < 25) && (timeHour == 3) || (timeMin > 24) && (timeHour == 2)){
+    ledStates[73] = true;
+    ledStates[74] = true;
+    ledStates[75] = true;
+    ledStates[76] = true;
   }
 
   //VIER
-  if ((timeMin < 25) && (timeHour == 4) || (timeMin > 24) && (timeHour == 3))
-  {
-    ledValues[66] = true;
-    ledValues[67] = true;
-    ledValues[68] = true;
-    ledValues[69] = true;
+  if ((timeMin < 25) && (timeHour == 4) || (timeMin > 24) && (timeHour == 3)){
+    ledStates[66] = true;
+    ledStates[67] = true;
+    ledStates[68] = true;
+    ledStates[69] = true;
   }
 
   //FÜNF
-  if ((timeMin < 25) && (timeHour == 5) || (timeMin > 24) && (timeHour == 4))
-  {
-    ledValues[44] = true;
-    ledValues[45] = true;
-    ledValues[46] = true;
-    ledValues[47] = true;
+  if ((timeMin < 25) && (timeHour == 5) || (timeMin > 24) && (timeHour == 4)){
+    ledStates[44] = true;
+    ledStates[45] = true;
+    ledStates[46] = true;
+    ledStates[47] = true;
   }
 
   //SECHS
-  if ((timeMin < 25) && (timeHour == 6) || (timeMin > 24) && (timeHour == 5))
-  {
-    ledValues[77] = true;
-    ledValues[78] = true;
-    ledValues[79] = true;
-    ledValues[80] = true;
-    ledValues[81] = true;
+  if ((timeMin < 25) && (timeHour == 6) || (timeMin > 24) && (timeHour == 5)){
+    ledStates[77] = true;
+    ledStates[78] = true;
+    ledStates[79] = true;
+    ledStates[80] = true;
+    ledStates[81] = true;
   }
 
   //SIEBEN
-  if ((timeMin < 25) && (timeHour == 7) || (timeMin > 24) && (timeHour == 6))
-  {
-    ledValues[93] = true;
-    ledValues[94] = true;
-    ledValues[95] = true;
-    ledValues[96] = true;
-    ledValues[97] = true;
-    ledValues[98] = true;
+  if ((timeMin < 25) && (timeHour == 7) || (timeMin > 24) && (timeHour == 6)){
+    ledStates[93] = true;
+    ledStates[94] = true;
+    ledStates[95] = true;
+    ledStates[96] = true;
+    ledStates[97] = true;
+    ledStates[98] = true;
   }
 
   //ACHT
-  if ((timeMin < 25) && (timeHour == 8) || (timeMin > 24) && (timeHour == 7))
-  {
-    ledValues[84] = true;
-    ledValues[85] = true;
-    ledValues[86] = true;
-    ledValues[87] = true;
+  if ((timeMin < 25) && (timeHour == 8) || (timeMin > 24) && (timeHour == 7)){
+    ledStates[84] = true;
+    ledStates[85] = true;
+    ledStates[86] = true;
+    ledStates[87] = true;
   }
 
   //NEUN
-  if ((timeMin < 25) && (timeHour == 9) || (timeMin > 24) && (timeHour == 8))
-  {
-    ledValues[99] = true;
-    ledValues[100] = true;
-    ledValues[101] = true;
-    ledValues[102] = true;
+  if ((timeMin < 25) && (timeHour == 9) || (timeMin > 24) && (timeHour == 8)){
+    ledStates[99] = true;
+    ledStates[100] = true;
+    ledStates[101] = true;
+    ledStates[102] = true;
   }
 
   //ZEHN
-  if ((timeMin < 25) && (timeHour == 10) || (timeMin > 24) && (timeHour == 9))
-  {
-    ledValues[103] = true;
-    ledValues[104] = true;
-    ledValues[105] = true;
-    ledValues[106] = true;
+  if ((timeMin < 25) && (timeHour == 10) || (timeMin > 24) && (timeHour == 9)){
+    ledStates[103] = true;
+    ledStates[104] = true;
+    ledStates[105] = true;
+    ledStates[106] = true;
   }
 
   //ELF
-  if ((timeMin < 25) && (timeHour == 11) || (timeMin > 24) && (timeHour == 10))
-  {
-    ledValues[47] = true;
-    ledValues[48] = true;
-    ledValues[49] = true;
+  if ((timeMin < 25) && (timeHour == 11) || (timeMin > 24) && (timeHour == 10)){
+    ledStates[47] = true;
+    ledStates[48] = true;
+    ledStates[49] = true;
   }
 
   //ZWÖLF
-  if ((timeMin < 25) && (timeHour == 12) || (timeMin > 24) && (timeHour == 11))
-  {
-    ledValues[88] = true;
-    ledValues[89] = true;
-    ledValues[90] = true;
-    ledValues[91] = true;
-    ledValues[92] = true;
+  if ((timeMin < 25) && (timeHour == 12) || (timeMin > 24) && (timeHour == 11)){
+    ledStates[88] = true;
+    ledStates[89] = true;
+    ledStates[90] = true;
+    ledStates[91] = true;
+    ledStates[92] = true;
   }
 
   //-----Zeitunterteilung-----//
 
   //FÜNF
-  if ((timeMin > 4) && (timeMin < 10) || (timeMin > 24) && (timeMin < 30) || (timeMin > 34) && (timeMin < 40) || (timeMin > 54))
-  {
-    ledValues[0] = true;
-    ledValues[1] = true;
-    ledValues[2] = true;
-    ledValues[3] = true;
+  if ((timeMin > 4) && (timeMin < 10) || (timeMin > 24) && (timeMin < 30) || (timeMin > 34) && (timeMin < 40) || (timeMin > 54)){
+    ledStates[0] = true;
+    ledStates[1] = true;
+    ledStates[2] = true;
+    ledStates[3] = true;
   }
 
   //ZEHN
-  if ((timeMin > 9) && (timeMin < 15) || (timeMin > 39) && (timeMin < 45) || (timeMin > 49) && (timeMin < 55))
-  {
-    ledValues[11] = true;
-    ledValues[12] = true;
-    ledValues[13] = true;
-    ledValues[14] = true;
+  if ((timeMin > 9) && (timeMin < 15) || (timeMin > 39) && (timeMin < 45) || (timeMin > 49) && (timeMin < 55)){
+    ledStates[11] = true;
+    ledStates[12] = true;
+    ledStates[13] = true;
+    ledStates[14] = true;
   }
 
-  //VIERTEL
-  if ((timeMin > 14) && (timeMin < 20) || (timeMin > 44) && (timeMin < 50)) //Intervall für Dreiviertel ebenfalls eingeschlossen
-  {
-    ledValues[22] = true;
-    ledValues[23] = true;
-    ledValues[24] = true;
-    ledValues[25] = true;
-    ledValues[26] = true;
-    ledValues[27] = true;
-    ledValues[28] = true;
+  //VIERTEL - Intervall für Dreiviertel ebenfalls eingeschlossen
+  if ((timeMin > 14) && (timeMin < 20) || (timeMin > 44) && (timeMin < 50)){
+    ledStates[22] = true;
+    ledStates[23] = true;
+    ledStates[24] = true;
+    ledStates[25] = true;
+    ledStates[26] = true;
+    ledStates[27] = true;
+    ledStates[28] = true;
   }
 
   //ZWANZIG
-  if ((timeMin > 19) && (timeMin < 25))
-  {
-    ledValues[15] = true;
-    ledValues[16] = true;
-    ledValues[17] = true;
-    ledValues[18] = true;
-    ledValues[19] = true;
-    ledValues[20] = true;
-    ledValues[21] = true;
+  if ((timeMin > 19) && (timeMin < 25)){
+    ledStates[15] = true;
+    ledStates[16] = true;
+    ledStates[17] = true;
+    ledStates[18] = true;
+    ledStates[19] = true;
+    ledStates[20] = true;
+    ledStates[21] = true;
   }
 
   //HALB
-  if ((timeMin > 24) && (timeMin < 45))
-  {
-    ledValues[51] = true;
-    ledValues[52] = true;
-    ledValues[53] = true;
-    ledValues[54] = true;
+  if ((timeMin > 24) && (timeMin < 45)){
+    ledStates[51] = true;
+    ledStates[52] = true;
+    ledStates[53] = true;
+    ledStates[54] = true;
   }
 
   //DREI(VIERTEL)
-  if ((timeMin > 44) && (timeMin < 50))
-  {
+  if ((timeMin > 44) && (timeMin < 50)){
     for (int j = 22; j < 33; j++) {
-      ledValues[j] = true;
+      ledStates[j] = true;
     }
   }
 
   //Geburttage
-
   if ((timeDay == 26) && (timeMonth == 05)) {
-    ledValues[36] = true;
-    ledValues[37] = true;
-    ledValues[38] = true;
-    ledValues[39] = true;
+    ledStates[36] = true;
+    ledStates[37] = true;
+    ledStates[38] = true;
+    ledStates[39] = true;
     leo = true;
   }
   else
@@ -363,18 +340,16 @@ boolean setLED(int i) {
   }
 
   if ((timeDay == 20) && (timeMonth == 07)) {
-    ledValues[36] = true;
-    ledValues[37] = true;
-    ledValues[38] = true;
-    ledValues[39] = true;
+    ledStates[36] = true;
+    ledStates[37] = true;
+    ledStates[38] = true;
+    ledStates[39] = true;
     kai = true;
   }
   else
   {
     kai = false;
   }
-
-  return ledValues[i];
 
 }
 
@@ -403,7 +378,7 @@ void setup() {
   timeClient.begin();
   timeClient.setTimeOffset(3600); //GMT+1
 
-  //-----Pinout initialisieren-----//
+  //-----initialize IO-----//
   FastLED.addLeds<LED_TYPE, PIN_1, COLOR_ORDER>(led1, NUM_LEDS_PART_A).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<LED_TYPE, PIN_2, COLOR_ORDER>(led2, NUM_LEDS_PART_B).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<LED_TYPE, PIN_3, COLOR_ORDER>(led3, NUM_LEDS_PART_C).setCorrection(TypicalLEDStrip);
@@ -415,7 +390,7 @@ void setup() {
 
 void loop() {
 
-  //check connection
+  //check mqtt connection
   if (!client.connected()){
     reconnect();
   }
@@ -468,9 +443,13 @@ void loop() {
     led4[0] = CRGB::Black;
   }
 
-  //-----words-----}
+  //-----words-----//
+
+  //get data for current time
+  setLED();
+
   for (int i = 0; i < 36; i++) {
-    if (setLED(i) == true) {
+    if (ledStates[i] == true) {
       leds[i].setRGB( MQTT_brightness, MQTT_brightness, MQTT_brightness);
     }
     else
@@ -479,7 +458,7 @@ void loop() {
     }
   }
   for (int i = 40; i < 110; i++) {
-    if (setLED(i) == true) {
+    if (ledStates[i] == true) {
       leds[i].setRGB( MQTT_brightness, MQTT_brightness, MQTT_brightness);
     }
     else
@@ -489,14 +468,14 @@ void loop() {
   }
 
   //---birthdays---
-  if ((ledValues[36] == true) && (leo == true)) {
+  if ((ledStates[36] == true) && (leo == true)) {
     leds[36] = CRGB::Red;
     leds[37] = CRGB::Red;
     leds[38] = CRGB::Red;
     leds[39] = CRGB::Red;
   }
 
-  if ((ledValues[36] == true) && (kai == true)) {
+  if ((ledStates[36] == true) && (kai == true)) {
     leds[36] = CRGB::Yellow;
     leds[37] = CRGB::Yellow;
     leds[38] = CRGB::Yellow;
