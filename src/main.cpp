@@ -2,6 +2,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #define FASTLED_ESP8266_RAW_PIN_ORDER //necessary for FastLED on ESPs
+#define FASTLED_ALLOW_INTERRUPTS 0
+#define FASTLED_INTERRUPT_RETRY_COUNT 1
 #include <FastLED.h>
 #include <Wire.h>
 #include <Time.h>
@@ -13,6 +15,9 @@ boolean ledStates[110];
 boolean leo = false;
 boolean kai = false;
 int oldminute = 0;
+int oldsec = 0;
+boolean rewriteTrigger = false;
+String timemode = "ntp";
 
 //LED settings
 #define LED_TYPE WS2812B
@@ -20,7 +25,7 @@ int oldminute = 0;
 #define PIN_1 14
 #define PIN_2 12
 #define PIN_3 13
-#define PIN_4 15
+#define PIN_4 4
 #define PIN_WORDS 5
 
 //set LED arrays
@@ -78,6 +83,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   MQTT_brightness = receivedString.toInt();
   receivedString = "";
  }
+
+ if (strcmp(topic,"home/livingroom/wordclock/debugging")==0){
+ 
+  for (int i=0;i<length;i++) {
+   receivedString += (char)payload[i];
+  }
+  timemode = receivedString;
+  receivedString = "";
+ }
 }
 
 //reconnect for mqtt-broker
@@ -91,6 +105,7 @@ void reconnect() {
 
   //subscribe
   client.subscribe("home/livingroom/wordclock/brightness");
+  client.subscribe("home/livingroom/wordclock/debugging");
   
  } else {
   Serial.print("failed, rc=");
@@ -102,17 +117,25 @@ void reconnect() {
  }
 }
 
+// check time to update leds every sec
+void checkTime(){
 
-//---set time---//
-void setTime(){
-
-  oldminute = timeMin;
+  oldsec = timeSec;
 
   while(!timeClient.update()) {
     timeClient.forceUpdate();
   }
 
   timeSec = timeClient.getSeconds();
+}
+
+//---set time---//
+void setTime(){
+
+  while(!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+
   timeMin = timeClient.getMinutes();
   timeHour = timeClient.getHours();
 
@@ -129,7 +152,6 @@ void setTime(){
   }
 
 }
-
 
 //---determine LED status-----//
 void setLED() {
@@ -396,9 +418,23 @@ void loop() {
   }
   client.loop();
 
-  //update time
-  setTime();
+  //check time to rewrite LEDs
+  checkTime();
 
+  if (timeSec != oldsec){
+    rewriteTrigger = true;
+  }
+
+  //set current time if no other mode is set
+  if (timemode == "ntp"){
+    setTime();
+  }
+  //if available read debugging-msg with format "hh:mm"
+  else{
+    timeHour = timemode.substring(0,2).toInt();
+    timeMin = timemode.substring(3).toInt();
+  }
+  
   //-----set LEDs-----//
 
   //timeMins
@@ -483,9 +519,19 @@ void loop() {
   }
 
   //--activate LEDs---//
-  if ((oldminute != timeMin) || (old_brightness != MQTT_brightness)){
+  if (((oldminute != timeMin) || (old_brightness != MQTT_brightness)) || (rewriteTrigger == true)){
+
+    Serial.print("new time: ");
+    Serial.print(timeHour);
+    Serial.print(":");
+    Serial.print(timeMin);
+    Serial.print(":");
+    Serial.println(timeSec);
+  
     FastLED.show();
     old_brightness = MQTT_brightness;
+    oldminute = timeMin;
+    rewriteTrigger = false;
   }
 
 }
