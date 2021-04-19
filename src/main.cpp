@@ -17,7 +17,7 @@ boolean kai = false;
 int oldminute = 0;
 int oldsec = 0;
 boolean rewriteTrigger = false;
-String timemode = "ntp";
+String timemode;
 
 //LED settings
 #define LED_TYPE WS2812B
@@ -69,6 +69,10 @@ int timeMin = 0;
 int timeHour = 0;
 int timeDay = 0;
 int timeMonth = 0;
+int timeWeekday = 0;
+int offset = 0;
+
+long mqtt_timer = 0;
 
 //-------------------------------------functions----------------------------------//
 
@@ -129,6 +133,61 @@ void checkTime(){
   timeSec = timeClient.getSeconds();
 }
 
+
+// check for summer-/ wintertime
+int dstCheck(){
+
+  int offset = 0;
+
+  // calc switch day params
+  int offsetSunday = 7 - timeWeekday; // nbr days to next sunday
+  int remainingDays = 31 - timeDay - offsetSunday; // nbr if >=7 sunday(s) remaining
+
+  // months summertime
+  if ((timeMonth > 3) && (timeMonth < 10)){
+    offset = 2;
+  }
+
+  // months wintertime
+  if ((timeMonth < 3) && (timeMonth > 10)){
+    offset = 1;
+  }
+
+  // check days in march
+  if (timeMonth == 3) 
+  {
+    if (remainingDays >= 7){
+      offset = 1;
+    }
+    else{
+      if ((timeWeekday == 7) && (timeHour < 1)){
+        offset = 1;
+      }
+      else{
+        offset = 2;
+      }
+    }
+  }
+
+  // check days in october
+  if (timeMonth == 10)
+  {
+    if (remainingDays >= 7){
+      offset = 2;
+    }
+    else{
+      if ((timeWeekday == 7) && (timeHour < 1)){
+        offset = 2;
+      }
+      else{
+        offset = 1;
+      }
+    }
+  }
+
+  return offset;
+}
+
 //---set time---//
 void setTime(){
 
@@ -136,22 +195,35 @@ void setTime(){
     timeClient.forceUpdate();
   }
 
-  timeMin = timeClient.getMinutes();
-  timeHour = timeClient.getHours();
-
+  // get time UTC from NTP
   time_t rawtime = timeClient.getEpochTime();
   struct tm * ti;
   ti = localtime (&rawtime);
 
-  timeMonth = (ti->tm_mon + 1) < 10 ? 0 + (ti->tm_mon + 1) : (ti->tm_mon + 1);
+  timeMin = ti->tm_min;
+  timeHour = ti->tm_hour;
   timeDay = (ti->tm_mday) < 10 ? 0 + (ti->tm_mday) : (ti->tm_mday);
+  timeWeekday = ti->tm_wday;
+  timeMonth = (ti->tm_mon + 1) < 10 ? 0 + (ti->tm_mon + 1) : (ti->tm_mon + 1);
+
+  // correct for dst
+  offset = dstCheck();
+  rawtime = rawtime + (offset*3600);
+
+  // recalc local time
+  ti = localtime (&rawtime);
+  timeMin = ti->tm_min;
+  timeHour = ti->tm_hour;
+  timeDay = (ti->tm_mday) < 10 ? 0 + (ti->tm_mday) : (ti->tm_mday);
+  timeWeekday = ti->tm_wday;
+  timeMonth = (ti->tm_mon + 1) < 10 ? 0 + (ti->tm_mon + 1) : (ti->tm_mon + 1);
   
   //change to 12h-hourFormat
   if (timeHour > 12){
     timeHour = timeHour - 12;
   }
-
 }
+
 
 //---determine LED status-----//
 void setLED() {
@@ -372,7 +444,6 @@ void setLED() {
   {
     kai = false;
   }
-
 }
 
 
@@ -381,6 +452,7 @@ void setLED() {
 void setup() {
 
   Serial.begin(9600); 
+  timemode = "ntp";
 
   //Wifi
   WiFi.hostname("wordclock");
@@ -398,7 +470,6 @@ void setup() {
 
   //ntp 
   timeClient.begin();
-  timeClient.setTimeOffset(3600); //GMT+1
 
   //-----initialize IO-----//
   FastLED.addLeds<LED_TYPE, PIN_1, COLOR_ORDER>(led1, NUM_LEDS_PART_A).setCorrection(TypicalLEDStrip);
@@ -406,7 +477,6 @@ void setup() {
   FastLED.addLeds<LED_TYPE, PIN_3, COLOR_ORDER>(led3, NUM_LEDS_PART_C).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<LED_TYPE, PIN_4, COLOR_ORDER>(led4, NUM_LEDS_PART_D).setCorrection(TypicalLEDStrip);
   FastLED.addLeds<LED_TYPE, PIN_WORDS, COLOR_ORDER>(leds, NUM_LEDS_PART_E).setCorrection(TypicalLEDStrip);
-
 }
 
 
@@ -421,7 +491,7 @@ void loop() {
   //check time to rewrite LEDs
   checkTime();
 
-  if (timeSec != oldsec){
+  if ((timeSec != oldsec) && (timemode == "ntp")){
     rewriteTrigger = true;
   }
 
@@ -429,10 +499,20 @@ void loop() {
   if (timemode == "ntp"){
     setTime();
   }
-  //if available read debugging-msg with format "hh:mm"
+  //if available read debugging-msg with format "DD.MM,hh:mm,Weekday"
   else{
-    timeHour = timemode.substring(0,2).toInt();
-    timeMin = timemode.substring(3).toInt();
+
+    if ((millis() - mqtt_timer) >= 1000){
+      timeSec = random(1,61);
+      mqtt_timer = millis();
+      rewriteTrigger = true;
+    }
+
+    timeDay = timemode.substring(0,2).toInt();
+    timeMonth = timemode.substring(3,5).toInt();
+    timeHour = timemode.substring(6,8).toInt();
+    timeMin = timemode.substring(9,11).toInt();
+    timeWeekday = timemode.substring(12).toInt();
   }
   
   //-----set LEDs-----//
@@ -521,19 +601,16 @@ void loop() {
   //--activate LEDs---//
   if (((oldminute != timeMin) || (old_brightness != MQTT_brightness)) || (rewriteTrigger == true)){
 
-    Serial.print("new time: ");
-    Serial.print(timeHour);
-    Serial.print(":");
-    Serial.print(timeMin);
-    Serial.print(":");
-    Serial.println(timeSec);
+    Serial.print("Date: " + String(timeDay) + "." +  String(timeMonth) + "   ");
+    Serial.print("Time: " + String(timeHour) + ":" + String(timeMin) + "   ");
+    Serial.print("Weekday: " + String(timeWeekday) + "   ");
+    Serial.println("| Offset: " + String(offset) + "h");
   
     FastLED.show();
     old_brightness = MQTT_brightness;
     oldminute = timeMin;
     rewriteTrigger = false;
   }
-
 }
 
 
