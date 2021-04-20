@@ -10,3 +10,8 @@ this repo contains code for a [QLOCKTWO](https://qlocktwo.com/de/)-style clock w
 ### clockface
 
 I've included a .dxf with the original design of my clockface in this repository. I also provide a .png with 7874x7874 pixels resolution. This image is mirrored, so that it can be printed onto an adhesive film and glued onto the backside of a glass. This way the light of the LEDs isn't diffused before it arrives the mask. 
+
+### debugging
+
+There exists a debugging-mqtt-channel for testing LEDs and general functionality. Default is ```home/livingroom/wordclock/debugging```.
+It expects a message in the format ```"DD.MM,hh:mm,Weekday"``` (e.g. ```"11.12,13:14,1"``` for Monday the 11. of december at 13:14). The NTP time-synchronisation can be re-enabled by sending ```"ntp"``` as as message.
